@@ -2,82 +2,120 @@
 
 ## Overview
 
-This project is a simple Bookstore API built with FastAPI. It allows users to manage books and perform user authentication, including sign-up and login functionalities. The API uses JWT tokens for securing endpoints related to book management.
+This project is a **bookstore** application with **unit tests**, **integration tests**, and a **Jenkins pipeline** configuration to run these tests. The application uses **FastAPI** as the framework, and **pytest** for testing.
 
-## Features
+## Unit Tests
 
-- **Book Management**: Users can create, update, delete, and retrieve books.
-- **User Authentication**: Includes user sign-up and login functionalities.
-- **Secure Endpoints**: Uses JWT tokens to secure book management endpoints.
+Unit tests are used to validate the functionality of individual API calls in isolation. In this project, we use the **pytest** framework for writing and running unit tests.
 
-## Technologies
+### Example Unit Test
 
-- **FastAPI**: A modern, fast (high-performance) web framework for building APIs with Python 3.7+.
-- **SQLAlchemy**: SQL toolkit and Object-Relational Mapping (ORM) library for Python.
-- **Passlib**: Comprehensive password hashing library for Python.
-- **JWT**: JSON Web Tokens for securely transmitting information between parties.
+Here’s an example of a simple unit test for a FastAPI application:
 
-## Getting Started
+```python
+# test_unittests.py
 
-### Prerequisites
+@pytest.mark.unitTest
+@pytest.mark.getBooks
+@pytest.mark.asyncio
+async def test_getBooks(login):
+    token = login
+    header["Authorization"] = f"Bearer {token}"
+    response = requests.get(url + '/books', headers=header)
+    assert response.status_code == 200, print(f"Failed to get all books. Error : {response.text}")
+    print("Retrieved all books successfully")
+```
 
-- Python 3.7+
-- pip
+## Integration Tests
 
-### Installation
+Integration tests check how various API calls of the application work together.
 
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/sanjay-dandekar-jktech/git
-    ```
+### Example Integration Test
 
-2. Navigate to the project directory:
+Here’s an example of a simple integration test for a FastAPI application:
 
-    ```bash
-    cd bookstore
-    ```
+```python
+# test_integrationtests.py
 
-3. Install the required packages:
+@pytest.mark.integrationTest
+@pytest.mark.createBook
+@pytest.mark.asyncio
+async def test_createBook(login):
+    token = login
+    header["Authorization"] = f"Bearer {token}"
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url + "/books/", json=book, headers=header)
+        assert response.status_code == 200, print(f"Failed to create book. Error : {response.text}")
+        print("Created book successfully")
+        bookResponse = response.json()
+        assert sorted(bookResponse) == sorted(book), print(f"Created book is different from data sent")
+        print("Book is created according to data sent")
+        response = await client.get(url + "/books/", headers=header)
+        getBooks = response.json()
+        assert bookResponse in getBooks, print(f"Get all books didn't return created book")
+        print("Get all books contain created book")
+```
 
-### Running the Application
+## Jenkins Pipeline Configuration
 
-1. Start the FastAPI server:
+This project includes a JenkinsFile to automate the testing process. The JenkinsFile defines the steps to build, test, and deploy the application.
 
-    ```bash
-    uvicorn main:app --reload
-    ```
+### Jenkins file location and explanation
 
-2. The API will be available at `http://127.0.0.1:8000`
+#### Checkout
+This stage clones the code from a GitHub repository.
+#### Set up Python Environment
+It sets up a Python virtual environment and installs dependencies from requirements.txt.
+#### Run Unit Tests
+This step runs unit tests using pytest.
+#### Run Integration Tests
+This step runs integration tests using pytest.
+#### Post Actions
+Displays messages depending on whether the tests pass or fail and stops the uvicorn process.
 
-### API Endpoints
 
-- Book Management
+### Running the Jenkins Pipeline
 
-    - POST /books/: Create a new book.
-    - PUT /books/{book_id}: Update a book by ID.
-    - DELETE /books/{book_id}: Delete a book by ID.
-    - GET /books/{book_id}: Get a book by ID.
-    - GET /books/: Get all books.
+Create a Jenkins project that pulls the repository where the Jenkinsfile is stored.
+Ensure that the Jenkins agent has Python installed.
+Configure the project to use the Jenkinsfile in the repository.
 
-- User Authentication
 
-    - POST /signup: Sign up a new user.
-    - POST /login: Log in and receive an access token.
+### Running Locally
 
-- Health Check
-    - GET /health: Check the health of the API.
+Ensure that python is installed on the system
 
-### Running using Docker
+Clone the repository https://github.com/SowmyaAnchur/bookstore.git
 
-- Use the following command to bring up the bookstore API container
+Navigate to bookstore directory and create venv: cd bookstore && python -m venv venv
 
-  ```bash
-  docker compose up --build -d bookstore
-  ```
+Install the requirements: pip install -r requirements.txt
 
-### License
-    This project is licensed under the MIT License - see the LICENSE file for details
+Start the API server: uvicorn main:app --reload
+
+In a new terminal follow above steps except starting server and run the commands: pytest -m unitTest --html=unitTests.html  for unit tests
+pytest -m integrationTest --html=integrationTests.html  for unit tests for integration tests
+
+## Testing approach:
+
+Sessions are managed by separating the signup and login processes in conftest.py. The signup process is executed once per session to generate a Bearer token, which is then reused for the duration of the session, ensuring efficient authentication for subsequent requests.
+
+Each test includes assertions to verify expected outcomes and HTTP response codes, helping to ensure the correctness of the system. Negative test cases are also included to check how the system handles invalid inputs and unexpected scenarios.
+
+For improved readability and maintainability, all tests are named according to the functionality they verify.
+
+Tests are designed to exit immediately if any errors occur, ensuring that the failure of one test does not impact the execution of subsequent tests.
+
+Logs are structured in a way that provides clear insights into failures, making debugging and issue resolution more efficient.
+
+### Unit tests:
+
+Unit tests are designed to validate individual API endpoints in isolation, ensuring both positive and negative scenarios are handled correctly. These tests focus on verifying the functionality of key operations such as login and all CRUD (Create, Read, Update, Delete) operations, ensuring that each behaves as expected under different conditions.
+
+### Integration tests:
+
+Integration tests focus on evaluating how multiple API calls interact within the system. These tests ensure that components work together as expected and validate end-to-end functionality.
+
+
+

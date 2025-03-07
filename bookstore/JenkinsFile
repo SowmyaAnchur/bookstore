@@ -1,0 +1,79 @@
+pipeline {
+    agent any
+
+    environment {
+        VIRTUAL_ENV = '.venv'  // Use a virtual environment
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout the source code from your GitHub repository
+                git branch: 'main', url: 'https://github.com/SowmyaAnchur/bookstore.git'
+            }
+        }
+
+        stage('Set up Python Environment') {
+            steps {
+                script {
+                    echo 'Setting up environment and installing requirements'
+                    // Change to bookstore directory
+                    bat 'cd ./bookstore'
+                    // Create a virtual environment using Python (for Windows use the correct path to Python)
+                    bat 'python -m venv .venv'
+                    // Install dependencies from requirements.txt
+                    bat '.\\.venv\\Scripts\\pip install -r requirements.txt'
+                }
+            }
+        }
+
+        stage('Parallel steps') {
+            parallel{
+                stage('Run FastAPI'){
+                    steps {
+                        script {
+                            echo 'Running Uvicorn'
+                            // Starting Uvicorn server in background as parallel step
+                            bat 'cd ./bookstore &&  start /B .\\.venv\\Scripts\\uvicorn main:app --reload'
+                            echo 'Uvicorn is running in the background'
+                        }
+                    }
+                }
+                stage('Run Unit Tests') {
+                    steps {
+                        script {
+                            echo 'Running unit tests'
+                            // Run unit tests with pytest
+                            sh '.venv/bin/pytest -v -s test_unittests.py'
+                        }
+                    }
+                }
+
+                stage('Run Integration Tests') {
+                    steps {
+                        script {
+                            echo 'Running integration tests'
+                            // Run integration tests with pytest
+                            sh '.venv/bin/pytest -v -s test_integrationtests.py'
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Tests ran successfully!'
+        }
+        failure {
+            echo 'Tests failed.  Check the logs.'
+        }
+        always {
+            script{
+                echo 'Stopping Uvicorn'
+                bat 'taskkill /IM "uvicorn.exe" /F'
+            }
+        }
+    }
+}
